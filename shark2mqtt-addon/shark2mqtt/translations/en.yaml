@@ -1,0 +1,49 @@
+configuration:
+  shark_username:
+    name: Shark account email
+    description: The email address you use to log in to the SharkNinja app.
+  shark_password:
+    name: Shark account password
+    description: Your SharkNinja app password.
+  mqtt_host:
+    name: MQTT broker hostname
+    description: >-
+      Hostname or IP of your MQTT broker. If you're using the Mosquitto
+      add-on, this is typically "core-mosquitto".
+  shark_region:
+    name: Region
+    description: >-
+      Your SharkNinja account region. US is the default. EU support is
+      included but untested.
+  shark_household_id:
+    name: Household ID (optional)
+    description: >-
+      Leave blank to let shark2mqtt discover your household ID automatically.
+      Only set this if auto-discovery fails.
+  mqtt_port:
+    name: MQTT port
+    description: Port your MQTT broker listens on (default 1883).
+  mqtt_username:
+    name: MQTT username (optional)
+    description: Username for MQTT broker authentication. Leave blank if not required.
+  mqtt_password:
+    name: MQTT password (optional)
+    description: Password for MQTT broker authentication. Leave blank if not required.
+  mqtt_prefix:
+    name: MQTT topic prefix
+    description: >-
+      Prefix for all MQTT topics published by shark2mqtt. Default is
+      "shark2mqtt". Change this only if you have topic conflicts.
+  poll_interval:
+    name: Poll interval (seconds)
+    description: How often to poll the SharkNinja cloud when the vacuum is idle (default 300).
+  poll_interval_active:
+    name: Active poll interval (seconds)
+    description: >-
+      How often to poll while the vacuum is cleaning or returning to dock
+      (default 20). Lower values give more responsive status updates.
+  log_level:
+    name: Log level
+    description: >-
+      Verbosity of add-on logs. Use DEBUG for troubleshooting, INFO for
+      normal operation.
