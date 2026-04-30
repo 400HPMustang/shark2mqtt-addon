@@ -1,60 +1,99 @@
-#!/usr/bin/with-contenv bashio
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
-# ---------------------------------------------------------------------------
-# shark2mqtt HA add-on entry point
-# Reads options from the HA Supervisor config and exports them as the env
-# vars that shark2mqtt expects, then hands off to the upstream entrypoint.
-# ---------------------------------------------------------------------------
+CONFIG_PATH="/data/options.json"
 
-bashio::log.info "Reading configuration..."
+log() {
+  echo "[INFO] $*"
+}
 
-# Required
-export SHARK_USERNAME="$(bashio::config 'shark_username')"
-export SHARK_PASSWORD="$(bashio::config 'shark_password')"
-export MQTT_HOST="$(bashio::config 'mqtt_host')"
+warn() {
+  echo "[WARN] $*" >&2
+}
 
-# Validate required fields
-if bashio::var.is_empty "${SHARK_USERNAME}"; then
-    bashio::exit.nok "shark_username is required — set it in the add-on configuration."
+fatal() {
+  echo "[ERROR] $*" >&2
+  exit 1
+}
+
+read_option() {
+  local key="$1"
+  jq -r --arg key "$key" '.[$key] // empty' "$CONFIG_PATH"
+}
+
+export_if_set() {
+  local env_name="$1"
+  local value="$2"
+
+  if [ -n "$value" ] && [ "$value" != "null" ]; then
+    export "$env_name=$value"
+  fi
+}
+
+if [ ! -f "$CONFIG_PATH" ]; then
+  fatal "Home Assistant add-on options file not found at $CONFIG_PATH"
 fi
-if bashio::var.is_empty "${SHARK_PASSWORD}"; then
-    bashio::exit.nok "shark_password is required — set it in the add-on configuration."
-fi
-if bashio::var.is_empty "${MQTT_HOST}"; then
-    bashio::exit.nok "mqtt_host is required — set it in the add-on configuration."
+
+log "Reading Home Assistant add-on configuration..."
+
+SHARK_USERNAME="$(read_option shark_username)"
+SHARK_PASSWORD="$(read_option shark_password)"
+MQTT_HOST="$(read_option mqtt_host)"
+
+if [ -z "$SHARK_USERNAME" ] || [ "$SHARK_USERNAME" = "null" ]; then
+  fatal "shark_username is required. Set it in the add-on Configuration tab."
 fi
 
-# Optional with defaults
-export SHARK_REGION="$(bashio::config 'shark_region')"
-export MQTT_PORT="$(bashio::config 'mqtt_port')"
-export MQTT_PREFIX="$(bashio::config 'mqtt_prefix')"
-export POLL_INTERVAL="$(bashio::config 'poll_interval')"
-export POLL_INTERVAL_ACTIVE="$(bashio::config 'poll_interval_active')"
-export LOG_LEVEL="$(bashio::config 'log_level')"
+if [ -z "$SHARK_PASSWORD" ] || [ "$SHARK_PASSWORD" = "null" ]; then
+  fatal "shark_password is required. Set it in the add-on Configuration tab."
+fi
 
-# Token directory — use the add-on's persistent /data volume
+if [ -z "$MQTT_HOST" ] || [ "$MQTT_HOST" = "null" ]; then
+  fatal "mqtt_host is required. If you use the Mosquitto add-on, core-mosquitto is usually correct."
+fi
+
+export SHARK_USERNAME
+export SHARK_PASSWORD
+export MQTT_HOST
+
+export_if_set SHARK_REGION "$(read_option shark_region)"
+export_if_set SHARK_HOUSEHOLD_ID "$(read_option shark_household_id)"
+export_if_set MQTT_PORT "$(read_option mqtt_port)"
+export_if_set MQTT_USERNAME "$(read_option mqtt_username)"
+export_if_set MQTT_PASSWORD "$(read_option mqtt_password)"
+export_if_set MQTT_PREFIX "$(read_option mqtt_prefix)"
+export_if_set POLL_INTERVAL "$(read_option poll_interval)"
+export_if_set POLL_INTERVAL_ACTIVE "$(read_option poll_interval_active)"
+export_if_set LOG_LEVEL "$(read_option log_level)"
+
+# Persist Shark auth tokens in the add-on's persistent data volume.
 export TOKEN_DIR="/data"
 
-# Optional MQTT credentials (only set if non-empty to avoid passing empty strings)
-if bashio::config.has_value 'mqtt_username'; then
-    export MQTT_USERNAME="$(bashio::config 'mqtt_username')"
-fi
-if bashio::config.has_value 'mqtt_password'; then
-    export MQTT_PASSWORD="$(bashio::config 'mqtt_password')"
-fi
+log "Starting shark2mqtt..."
+log "MQTT broker: ${MQTT_HOST}:${MQTT_PORT:-1883}"
+log "Shark region: ${SHARK_REGION:-us}"
+log "Polling: ${POLL_INTERVAL:-300}s / active ${POLL_INTERVAL_ACTIVE:-20}s"
+log "Token directory: ${TOKEN_DIR}"
 
-# Optional: pre-supplied household ID
-if bashio::config.has_value 'shark_household_id'; then
-    export SHARK_HOUSEHOLD_ID="$(bashio::config 'shark_household_id')"
-fi
+# Upstream shark2mqtt needs a headed Chromium browser inside Xvfb for auth.
+rm -f /tmp/.X99-lock
+Xvfb :99 -screen 0 1024x768x16 &
+XVFB_PID="$!"
+export DISPLAY=":99"
 
-bashio::log.info "Starting shark2mqtt..."
-bashio::log.info "  MQTT broker : ${MQTT_HOST}:${MQTT_PORT}"
-bashio::log.info "  Region      : ${SHARK_REGION}"
-bashio::log.info "  Poll interval: ${POLL_INTERVAL}s (active: ${POLL_INTERVAL_ACTIVE}s)"
-bashio::log.info "  Log level   : ${LOG_LEVEL}"
+cleanup() {
+  if kill -0 "$XVFB_PID" 2>/dev/null; then
+    kill "$XVFB_PID" 2>/dev/null || true
+  fi
+}
 
-# Hand off to the upstream image's entrypoint.
-# The upstream image (ghcr.io/camsoper/shark2mqtt) expects to be launched
-# directly as a Python module; exec it so signals are forwarded cleanly.
-exec python -m shark2mqtt "$@"
+trap cleanup EXIT INT TERM
+
+python -m src.main "$@" &
+APP_PID="$!"
+
+wait "$APP_PID"
+EXIT_CODE="$?"
+
+cleanup
+exit "$EXIT_CODE"
