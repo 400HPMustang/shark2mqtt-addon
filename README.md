@@ -17,7 +17,7 @@ storage, and integration with the Supervisor — no separate Docker setup needed
 2. Click the three-dot menu (⋮) in the top-right and choose **Repositories**.
 3. Add this repository URL:
    ```
-   https://github.com/YOUR_USERNAME/shark2mqtt-addon
+   https://github.com/400HPMustang/shark2mqtt-addon
    ```
 4. Find **Shark2MQTT** in the store, click **Install**, then configure and start it.
 
