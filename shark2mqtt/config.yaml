@@ -1,5 +1,5 @@
 name: Shark2MQTT
-version: "1.0.2"
+version: "1.0.3"
 slug: shark2mqtt
 description: Bridge SharkNinja robot vacuums to Home Assistant via MQTT autodiscovery.
 url: https://github.com/400HPMustang/shark2mqtt-addon
@@ -10,12 +10,16 @@ startup: application
 boot: auto
 apparmor: true
 backup: hot
+hassio_api: true
+services:
+  - mqtt:need
 options:
   shark_username: null
   shark_password: null
-  mqtt_host: core-mosquitto
   shark_region: us
   shark_household_id: ""
+  use_supervisor_mqtt_service: true
+  mqtt_host: ""
   mqtt_port: 1883
   mqtt_username: ""
   mqtt_password: ""
@@ -26,9 +30,10 @@ options:
 schema:
   shark_username: email
   shark_password: password
-  mqtt_host: str
   shark_region: list(us|eu)
   shark_household_id: str?
+  use_supervisor_mqtt_service: bool
+  mqtt_host: str?
   mqtt_port: port
   mqtt_username: str?
   mqtt_password: password?

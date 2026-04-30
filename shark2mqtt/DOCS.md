@@ -8,14 +8,25 @@ Required:
 
 - `shark_username`: SharkNinja account email
 - `shark_password`: SharkNinja account password
-- `mqtt_host`: MQTT broker host. If you use the Mosquitto add-on, `core-mosquitto` is usually correct.
 
-Optional:
+MQTT:
+
+By default, `use_supervisor_mqtt_service` is enabled. This tells the add-on to ask Home Assistant Supervisor for the configured MQTT service details. This is the recommended mode when using the official Mosquitto Broker app/add-on.
+
+If you want to use your own broker or manually configured credentials, turn off `use_supervisor_mqtt_service` and set:
+
+- `mqtt_host`
+- `mqtt_port`
+- `mqtt_username`
+- `mqtt_password`
+
+Optional Shark settings:
 
 - `shark_region`: `us` or `eu`
 - `shark_household_id`: leave blank unless you need to force a household ID
-- `mqtt_port`: default `1883`
-- `mqtt_username` / `mqtt_password`: your MQTT credentials, if required
+
+Other options:
+
 - `mqtt_prefix`: default `shark2mqtt`
 - `poll_interval`: default `300`
 - `poll_interval_active`: default `20`
