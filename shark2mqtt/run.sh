@@ -7,10 +7,6 @@ log() {
   echo "[INFO] $*"
 }
 
-warn() {
-  echo "[WARN] $*" >&2
-}
-
 fatal() {
   echo "[ERROR] $*" >&2
   exit 1
@@ -30,8 +26,15 @@ export_if_set() {
   fi
 }
 
+log "Starting Shark2MQTT Home Assistant add-on wrapper..."
+log "Container user: $(id -u):$(id -g)"
+
 if [ ! -f "$CONFIG_PATH" ]; then
   fatal "Home Assistant add-on options file not found at $CONFIG_PATH"
+fi
+
+if [ ! -r "$CONFIG_PATH" ]; then
+  fatal "Home Assistant add-on options file exists but is not readable at $CONFIG_PATH. This wrapper must run as root."
 fi
 
 log "Reading Home Assistant add-on configuration..."
@@ -66,16 +69,24 @@ export_if_set POLL_INTERVAL "$(read_option poll_interval)"
 export_if_set POLL_INTERVAL_ACTIVE "$(read_option poll_interval_active)"
 export_if_set LOG_LEVEL "$(read_option log_level)"
 
-# Persist Shark auth tokens in the add-on's persistent data volume.
+# Persist Shark auth tokens and auth failure screenshots in the add-on's
+# persistent /data volume.
 export TOKEN_DIR="/data"
 
-log "Starting shark2mqtt..."
+# Xvfb wants this directory. Creating it as root avoids:
+# _XSERVTransmkdir: ERROR: euid != 0,directory /tmp/.X11-unix will not be created.
+mkdir -p /tmp/.X11-unix
+chmod 1777 /tmp/.X11-unix
+
+# Make sure token persistence can write to /data.
+chmod u+rwX /data || true
+
+log "Configuration loaded."
 log "MQTT broker: ${MQTT_HOST}:${MQTT_PORT:-1883}"
 log "Shark region: ${SHARK_REGION:-us}"
 log "Polling: ${POLL_INTERVAL:-300}s / active ${POLL_INTERVAL_ACTIVE:-20}s"
 log "Token directory: ${TOKEN_DIR}"
 
-# Upstream shark2mqtt needs a headed Chromium browser inside Xvfb for auth.
 rm -f /tmp/.X99-lock
 Xvfb :99 -screen 0 1024x768x16 &
 XVFB_PID="$!"
@@ -88,6 +99,8 @@ cleanup() {
 }
 
 trap cleanup EXIT INT TERM
+
+log "Starting upstream shark2mqtt..."
 
 python -m src.main "$@" &
 APP_PID="$!"
