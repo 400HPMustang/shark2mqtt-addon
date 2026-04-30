@@ -8,8 +8,10 @@ ARG BUILD_FROM=ghcr.io/camsoper/shark2mqtt:latest
 FROM ${BUILD_FROM}
 
 # Install bashio so run.sh can use HA's config/logging helpers.
-# bashio is a tiny shell library; curl + tar is all we need to pull it in.
-RUN apk add --no-cache curl bash \
+# The upstream image is Debian-based, so we use apt-get (not apk).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
     && curl -fsSL \
        https://github.com/hassio-addons/bashio/archive/refs/tags/v0.16.2.tar.gz \
        | tar -xz -C /tmp \
@@ -20,4 +22,5 @@ RUN apk add --no-cache curl bash \
 COPY run.sh /
 RUN chmod a+x /run.sh
 
-CMD ["/run.sh"]
+# Override the upstream ENTRYPOINT so our run.sh takes control
+ENTRYPOINT ["/run.sh"]
