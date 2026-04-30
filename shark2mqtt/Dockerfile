@@ -1,26 +1,26 @@
-# ---------------------------------------------------------------------------
-# shark2mqtt Home Assistant Add-on
+# Shark2MQTT Home Assistant add-on wrapper.
 #
-# We layer the HA add-on scaffolding on top of the upstream shark2mqtt image
-# so we don't have to re-bundle Chromium / xvfb ourselves.
-# ---------------------------------------------------------------------------
-ARG BUILD_FROM=ghcr.io/camsoper/shark2mqtt:latest
-FROM ${BUILD_FROM}
+# This intentionally builds FROM the upstream shark2mqtt container,
+# then replaces the entrypoint with a Home Assistant-aware run script.
+#
+# Upstream currently publishes amd64 and arm64 images.
+ARG SHARK2MQTT_VERSION=1.5.1
+FROM ghcr.io/camsoper/shark2mqtt:${SHARK2MQTT_VERSION}
 
-# Install bashio so run.sh can use HA's config/logging helpers.
-# The upstream image is Debian-based, so we use apt-get (not apk).
+USER root
+
+# jq is used to read /data/options.json, which Home Assistant writes
+# from the add-on configuration UI.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends jq \
     && rm -rf /var/lib/apt/lists/* \
-    && curl -fsSL \
-       https://github.com/hassio-addons/bashio/archive/refs/tags/v0.16.2.tar.gz \
-       | tar -xz -C /tmp \
-    && mv /tmp/bashio-0.16.2/lib /usr/lib/bashio \
-    && ln -s /usr/lib/bashio/bashio.sh /usr/bin/bashio
+    && mkdir -p /tmp/.X11-unix /data \
+    && chmod 1777 /tmp/.X11-unix \
+    && chown -R shark:shark /data
 
-# Copy our add-on entry point
-COPY run.sh /
-RUN chmod a+x /run.sh
+COPY run.sh /run.sh
+RUN chmod 755 /run.sh
 
-# Override the upstream ENTRYPOINT so our run.sh takes control
+USER shark
+
 ENTRYPOINT ["/run.sh"]
