@@ -158,25 +158,49 @@ log "Polling: ${POLL_INTERVAL:-300}s / active ${POLL_INTERVAL_ACTIVE:-20}s"
 log "Token directory: ${TOKEN_DIR}"
 
 rm -f /tmp/.X99-lock
+
 Xvfb :99 -screen 0 1024x768x16 &
 XVFB_PID="$!"
 export DISPLAY=":99"
 
-cleanup() {
-  if kill -0 "$XVFB_PID" 2>/dev/null; then
-    kill "$XVFB_PID" 2>/dev/null || true
-  fi
+APP_PID=""
+
+cleanup_xvfb() {
+    if [ -n "${XVFB_PID:-}" ] && kill -0 "$XVFB_PID" 2>/dev/null; then
+        kill "$XVFB_PID" 2>/dev/null || true
+        wait "$XVFB_PID" 2>/dev/null || true
+    fi
 }
 
-trap cleanup EXIT INT TERM
+shutdown() {
+    log "Shutdown signal received; stopping upstream shark2mqtt..."
+
+    if [ -n "${APP_PID:-}" ] && kill -0 "$APP_PID" 2>/dev/null; then
+        # Forward Supervisor's shutdown signal to Shark2MQTT.
+        kill -TERM "$APP_PID" 2>/dev/null || true
+
+        # Allow Shark2MQTT to perform its own graceful cleanup.
+        wait "$APP_PID" 2>/dev/null || true
+    fi
+
+    cleanup_xvfb
+
+    log "Shark2MQTT stopped cleanly."
+    exit 0
+}
+
+trap cleanup_xvfb EXIT
+trap shutdown INT TERM
 
 log "Starting upstream shark2mqtt..."
 
 python -m src.main "$@" &
 APP_PID="$!"
 
-wait "$APP_PID"
-EXIT_CODE="$?"
+if wait "$APP_PID"; then
+    EXIT_CODE=0
+else
+    EXIT_CODE="$?"
+fi
 
-cleanup
 exit "$EXIT_CODE"
