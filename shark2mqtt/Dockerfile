@@ -6,7 +6,7 @@
 # Home Assistant writes /data/options.json in a way that may only be
 # readable by root. This wrapper intentionally starts as root so it can
 # read add-on options, create /tmp/.X11-unix, and persist tokens in /data.
-ARG SHARK2MQTT_VERSION=1.5.4
+ARG SHARK2MQTT_VERSION=1.5.5
 FROM ghcr.io/camsoper/shark2mqtt:${SHARK2MQTT_VERSION}
 
 USER root
