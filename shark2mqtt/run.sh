@@ -133,6 +133,9 @@ export_if_set MQTT_PREFIX "$MQTT_PREFIX"
 export_if_set POLL_INTERVAL "$(read_option poll_interval)"
 export_if_set POLL_INTERVAL_ACTIVE "$(read_option poll_interval_active)"
 export_if_set LOG_LEVEL "$(read_option log_level)"
+export_if_set AYLA_MERGE "$(read_option ayla_merge)"
+export_if_set MAP_IMAGE "$(read_option map_image)"
+export_if_set MAP_SHOW_SCAN "$(read_option map_show_scan)"
 
 # Persist Shark auth tokens and auth failure screenshots in the add-on's
 # persistent /data volume.
