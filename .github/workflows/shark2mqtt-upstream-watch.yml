@@ -1,0 +1,117 @@
+name: Shark2MQTT Upstream Release Watch
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'  # Every six hours (UTC)
+  workflow_dispatch:
+    inputs:
+      test_alert:
+        description: 'Create a test GitHub issue to verify alerts'
+        type: boolean
+        required: false
+        default: false
+  push:
+    branches: [main]
+    paths:
+      - 'shark2mqtt/Dockerfile'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check upstream release against pinned version
+        uses: actions/github-script@v8
+        env:
+          TEST_ALERT: ${{ inputs.test_alert }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const upstream = { owner: 'CamSoper', repo: 'shark2mqtt' };
+            const parse = s => {
+              const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(s);
+              return match ? match.slice(1).map(Number) : null;
+            };
+            const compare = (a, b) => {
+              const av = parse(a), bv = parse(b);
+              if (!av || !bv) throw new Error(`Invalid version comparison: ${a} / ${b}`);
+              for (let i = 0; i < 3; i++) {
+                if (av[i] !== bv[i]) return av[i] - bv[i];
+              }
+              return 0;
+            };
+
+            // Fail visibly if GitHub cannot verify the live upstream releases.
+            const { data: releases } = await github.rest.repos.listReleases({
+              ...upstream, per_page: 100
+            });
+            const stable = releases.filter(r => !r.draft && !r.prerelease && parse(r.tag_name));
+            if (!stable.length) throw new Error('No valid published upstream releases found.');
+            stable.sort((a, b) => compare(b.tag_name, a.tag_name));
+            const latest = stable[0];
+
+            const { data: file } = await github.rest.repos.getContent({
+              owner, repo, path: 'shark2mqtt/Dockerfile'
+            });
+            if (!file.content) throw new Error('Dockerfile could not be read.');
+            const dockerfile = Buffer.from(file.content, 'base64').toString('utf8');
+            const pin = dockerfile.match(/^\s*ARG\s+SHARK2MQTT_VERSION\s*=\s*["']?v?(\d+\.\d+\.\d+)/m)?.[1];
+            if (!pin) throw new Error('SHARK2MQTT_VERSION missing or invalid in Dockerfile.');
+            core.info(`Verified upstream: ${latest.tag_name}; pinned Docker image: ${pin}`);
+
+            const allIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner, repo, state: 'all', per_page: 100
+            });
+            const issues = allIssues.filter(i => !i.pull_request);
+            const test = process.env.TEST_ALERT === 'true';
+            const title = test
+              ? '[TEST] Shark2MQTT release watcher notification'
+              : `Shark2MQTT upstream ${latest.tag_name} available`;
+
+            if (test || compare(latest.tag_name, pin) > 0) {
+              const body = test
+                ? 'This is a test of the upstream release watcher. You can close this issue after confirming the notification.'
+                : `A newer Shark2MQTT release is available.\n\n` +
+                  `- **Upstream:** [${latest.tag_name}](${latest.html_url})\n` +
+                  `- **Dockerfile pin:** ${pin}\n\n` +
+                  `Review the upstream changes, then edit ` +
+                  `\`shark2mqtt/Dockerfile\` and any necessary app configuration or docs. ` +
+                  `Bump your Home Assistant app version and publish an app release.\n\n` +
+                  `This alert detects released version drift, not whether every feature is compatible.`;
+              const existing = issues.find(i => i.title === title);
+              if (existing) {
+                if (existing.state === 'closed') {
+                  await github.rest.issues.update({
+                    owner, repo, issue_number: existing.number, state: 'open'
+                  });
+                  core.info(`Reopened issue #${existing.number}.`);
+                } else {
+                  core.info(`Issue #${existing.number} already open; no duplicate.`);
+                }
+              } else {
+                const { data: created } = await github.rest.issues.create({
+                  owner, repo, title, body, assignees: [owner]
+                });
+                core.info(`Created issue #${created.number} and assigned it to ${owner}.`);
+              }
+            } else {
+              core.info('Pinned image is current. No update issue needed.');
+            }
+
+            // Close resolved or superseded *release-watch* issues automatically.
+            if (!test) {
+              for (const issue of issues) {
+                const match = /^Shark2MQTT upstream (v?\d+\.\d+\.\d+) available$/.exec(issue.title);
+                if (!match || issue.state !== 'open') continue;
+                if (compare(pin, match[1]) >= 0 || compare(latest.tag_name, match[1]) > 0) {
+                  await github.rest.issues.update({
+                    owner, repo, issue_number: issue.number, state: 'closed'
+                  });
+                  core.info(`Closed resolved/superseded issue #${issue.number}.`);
+                }
+              }
+            }
