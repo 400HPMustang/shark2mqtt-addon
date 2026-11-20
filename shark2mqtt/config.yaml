@@ -1,5 +1,5 @@
 name: Shark2MQTT
-version: "1.0.11"
+version: "1.0.12"
 slug: shark2mqtt
 description: Bridge SharkNinja robot vacuums to Home Assistant via MQTT autodiscovery.
 url: https://github.com/400HPMustang/shark2mqtt-addon
@@ -30,6 +30,8 @@ options:
   ayla_merge: false
   map_image: true
   map_show_scan: false
+  browser_login: true
+  pause_operating_mode: 1
 schema:
   shark_username: email
   shark_password: password
@@ -47,3 +49,5 @@ schema:
   ayla_merge: bool
   map_image: bool
   map_show_scan: bool
+  browser_login: bool
+  pause_operating_mode: int(0,1)
