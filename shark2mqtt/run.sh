@@ -152,6 +152,8 @@ export_if_set LOG_LEVEL "$(read_option log_level)"
 export_if_set AYLA_MERGE "$(read_option ayla_merge)"
 export_if_set MAP_IMAGE "$(read_option map_image)"
 export_if_set MAP_SHOW_SCAN "$(read_option map_show_scan)"
+export_if_set BROWSER_LOGIN "$(read_option browser_login)"
+export_if_set PAUSE_OPERATING_MODE "$(read_option pause_operating_mode)"
 
 # Persist Shark auth tokens and auth failure screenshots in the add-on's
 # persistent /data volume.
@@ -175,6 +177,7 @@ fi
 log "Shark region: ${SHARK_REGION:-us}"
 log "Polling: ${POLL_INTERVAL:-300}s / active ${POLL_INTERVAL_ACTIVE:-20}s"
 log "Token directory: ${TOKEN_DIR}"
+log "Browser login: ${BROWSER_LOGIN:-true}"
 
 rm -f /tmp/.X99-lock
 

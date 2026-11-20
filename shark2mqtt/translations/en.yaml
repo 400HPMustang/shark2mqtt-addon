@@ -47,3 +47,14 @@ configuration:
     description: >-
       Verbosity of add-on logs. Use DEBUG for troubleshooting, INFO for
       normal operation.
+  browser_login:
+    name: Automated browser login
+    description: >-
+      On by default. Turn off to never run the automated Shark login. The
+      add-on then needs a working token file in /data and logs "Shark login
+      needed" when there isn't one.
+  pause_operating_mode:
+    name: Pause command value
+    description: >-
+      Value sent for pause (default 1). Some robots, such as the UR2850ZEUS,
+      only pause with 0. On many models 0 means stop, so test it first.

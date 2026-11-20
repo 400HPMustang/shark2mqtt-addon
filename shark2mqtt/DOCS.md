@@ -34,6 +34,8 @@ Other options:
 - `ayla_merge`: default `false`. Enable only when a robot is missing due to a partially migrated Shark account.
 - `map_image`: default `true`. Publish a floor-plan image entity on supported Skegox accounts.
 - `map_show_scan`: default `false`. Include the robot's own floor scan behind the room outlines when the floor-plan image is enabled.
+- `browser_login`: default `true`. Set `false` to stop the add-on from ever running the automated browser login. When there's no working token in `/data`, the log then shows "Shark login needed" instead of retrying the login, which avoids Cloudflare failures and account lockouts. You'll need to put a working `shark2mqtt_tokens.json` in the add-on's `/data` folder yourself and restart.
+- `pause_operating_mode`: default `1`. The value sent for pause. Some robots (for example the UR2850ZEUS) ignore `1` and pause with `0`. On many other models `0` means stop, so try it before relying on it.
 
 ## Notes
 
