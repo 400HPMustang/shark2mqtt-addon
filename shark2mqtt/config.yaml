@@ -1,5 +1,5 @@
 name: Shark2MQTT
-version: "1.0.9"
+version: "1.0.10"
 slug: shark2mqtt
 description: Bridge SharkNinja robot vacuums to Home Assistant via MQTT autodiscovery.
 url: https://github.com/400HPMustang/shark2mqtt-addon
@@ -24,9 +24,6 @@ options:
   mqtt_username: ""
   mqtt_password: ""
   mqtt_prefix: shark2mqtt
-  poll_interval: 300
-  poll_interval_active: 20
-  log_level: INFO
   poll_interval: 300
   poll_interval_active: 20
   log_level: INFO

@@ -76,38 +76,52 @@ if [ "$USE_SUPERVISOR_MQTT_SERVICE" = "true" ]; then
   else
     log "Requesting MQTT service details from Home Assistant Supervisor..."
 
-    MQTT_SERVICE_JSON="$(curl -fsS \
-      -H "Authorization: Bearer ${SUPERVISOR_TOKEN}" \
-      -H "Content-Type: application/json" \
-      "$SUPERVISOR_MQTT_URL" || true)"
+    MQTT_SERVICE_JSON=""
+    MQTT_SERVICE_READY="false"
 
-    if [ -n "$MQTT_SERVICE_JSON" ]; then
-      # Supervisor responses may either be raw service JSON or wrapped in
-      # {"result":"ok","data":{...}} depending on API/client path.
-      SERVICE_HOST="$(json_value "$MQTT_SERVICE_JSON" '.data.host // .host')"
-      SERVICE_PORT="$(json_value "$MQTT_SERVICE_JSON" '.data.port // .port')"
-      SERVICE_USERNAME="$(json_value "$MQTT_SERVICE_JSON" '.data.username // .username')"
-      SERVICE_PASSWORD="$(json_value "$MQTT_SERVICE_JSON" '.data.password // .password')"
+    for attempt in $(seq 1 60); do
+      MQTT_SERVICE_JSON="$(curl -fsS \
+        --connect-timeout 2 \
+        --max-time 5 \
+        -H "Authorization: Bearer ${SUPERVISOR_TOKEN}" \
+        -H "Content-Type: application/json" \
+        "$SUPERVISOR_MQTT_URL" || true)"
 
-      if [ -n "$SERVICE_HOST" ]; then
-        MQTT_HOST="$SERVICE_HOST"
+      if [ -n "$MQTT_SERVICE_JSON" ]; then
+        SERVICE_HOST="$(json_value "$MQTT_SERVICE_JSON" '.data.host // .host')"
+        SERVICE_PORT="$(json_value "$MQTT_SERVICE_JSON" '.data.port // .port')"
+        SERVICE_USERNAME="$(json_value "$MQTT_SERVICE_JSON" '.data.username // .username')"
+        SERVICE_PASSWORD="$(json_value "$MQTT_SERVICE_JSON" '.data.password // .password')"
+
+        if [ -n "$SERVICE_HOST" ] && [ "$SERVICE_HOST" != "null" ]; then
+          MQTT_HOST="$SERVICE_HOST"
+
+          if [ -n "$SERVICE_PORT" ] && [ "$SERVICE_PORT" != "null" ]; then
+            MQTT_PORT="$SERVICE_PORT"
+          fi
+
+          if [ -n "$SERVICE_USERNAME" ] && [ "$SERVICE_USERNAME" != "null" ]; then
+            MQTT_USERNAME="$SERVICE_USERNAME"
+          fi
+
+          if [ -n "$SERVICE_PASSWORD" ] && [ "$SERVICE_PASSWORD" != "null" ]; then
+            MQTT_PASSWORD="$SERVICE_PASSWORD"
+          fi
+
+          MQTT_SERVICE_READY="true"
+          log "MQTT service details loaded from Supervisor on attempt ${attempt}."
+          break
+        fi
       fi
 
-      if [ -n "$SERVICE_PORT" ]; then
-        MQTT_PORT="$SERVICE_PORT"
+      if [ "$attempt" -lt 60 ]; then
+        warn "MQTT service not ready yet; retrying in 2 seconds (${attempt}/60)..."
+        sleep 2
       fi
+    done
 
-      if [ -n "$SERVICE_USERNAME" ]; then
-        MQTT_USERNAME="$SERVICE_USERNAME"
-      fi
-
-      if [ -n "$SERVICE_PASSWORD" ]; then
-        MQTT_PASSWORD="$SERVICE_PASSWORD"
-      fi
-
-      log "MQTT service details loaded from Supervisor."
-    else
-      warn "Could not read MQTT service details from Supervisor; falling back to manual MQTT settings."
+    if [ "$MQTT_SERVICE_READY" != "true" ]; then
+      warn "Could not obtain usable MQTT service details from Supervisor after 60 attempts; falling back to manual MQTT settings."
     fi
   fi
 fi
