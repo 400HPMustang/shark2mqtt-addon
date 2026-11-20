@@ -31,6 +31,9 @@ Other options:
 - `poll_interval`: default `300`
 - `poll_interval_active`: default `20`
 - `log_level`: `DEBUG`, `INFO`, `WARNING`, or `ERROR`
+- `ayla_merge`: default `false`. Enable only when a robot is missing due to a partially migrated Shark account.
+- `map_image`: default `true`. Publish a floor-plan image entity on supported Skegox accounts.
+- `map_show_scan`: default `false`. Include the robot's own floor scan behind the room outlines when the floor-plan image is enabled.
 
 ## Notes
 
