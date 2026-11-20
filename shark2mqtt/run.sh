@@ -19,7 +19,9 @@ fatal() {
 
 read_option() {
   local key="$1"
-  jq -r --arg key "$key" '.[$key] // empty' "$CONFIG_PATH"
+  # Not `.[$key] // empty`: jq's // also drops false, so a boolean option
+  # turned off (e.g. map_image: false) would never reach the bridge.
+  jq -r --arg key "$key" '.[$key] | if . == null then empty else . end' "$CONFIG_PATH"
 }
 
 export_if_set() {
